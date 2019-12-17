@@ -1,0 +1,466 @@
+#!/usr/bin/env python2.7
+
+import os, errno, subprocess, argparse, random, hashlib, socket, time, re
+
+### CONSTANTS ###
+MIN_COMPUTE_PORT = 8000
+MAX_COMPUTE_PORT = 9000
+MIN_HEAD_PORT = 10080
+MAX_HEAD_PORT = 10090
+HEAD_NODE = '141.142.153.73'
+HEAD_NODE_NAME = 'hal.ncsa.illinois.edu'
+
+# function to hash password for jupyter notebook file
+def passwd(passphrase, algorithm='sha1'):
+    # if password is empty return -1
+    if(passphrase == None):
+        return -1
+    # return hashed password
+    salt_len = 12
+    h = hashlib.new(algorithm)
+    salt = ('%0' + str(salt_len) + 'x') % random.getrandbits(4 * salt_len)
+    h.update(str(passphrase).encode('utf-8') + str(salt).encode('ascii'))
+
+    return ':'.join((algorithm, salt, h.hexdigest()))
+
+# checks if user is already running a jup_sched job
+def check_jup_sched_torque(username):
+    jobs_running = get_all_user_jobs_torque(username)
+    for job in jobs_running:
+	if(get_job_info_torque(job).get("Job_Name") == "jup_sched"):
+	    return True
+
+    return False
+
+# get all jobs ids from a given user
+# returns a list of job ids for the user
+def get_all_user_jobs_torque(username):
+    try:
+	# run qstat with username option and -c to eliminate completed jobs
+	qstat_out = subprocess.check_output(['qstat', '-f', '-1', '-c', '-u', str(username)]).split('\n\n')
+    except:
+        # if for some reason the command fails then return -1
+	return -1
+    
+    jobs_id = []
+    # return empty list if no jobs are running
+    if(len(qstat_out) == 0):
+	return jobs_id
+    
+    # check if last element is empty and remove it
+    if(qstat_out[-1] == ""):
+	del qstat_out[-1]
+
+    # loop through qstat_out and get job ids
+    for job in qstat_out:
+	job_id = parse_job_info_torque(job.splitlines()).get("Id").split(".")[0]
+	jobs_id.append(job_id)
+   
+    return jobs_id
+    
+
+# given a job id, returns a dictionary with all info received from qstat -f
+# if job doesn't exist, returns -1
+def get_job_info_torque(job_number):    
+    try:
+        # run qstat command with -f option to return in lines and split them
+        job_info = subprocess.check_output(['qstat', '-f', '-1', str(job_number)]).splitlines()
+    except:
+        # if job id doesn't exist return -1
+        return -1
+
+    # parse job string
+    return parse_job_info_torque(job_info) 
+
+# helper function to parse job raw input
+def parse_job_info_torque(job_info):
+    # check for empty string
+    if not job_info:
+	return -1
+    else:
+	# replace first string JobID: with JobID =
+        job_info[0] = job_info[0].replace(":", " =")
+        # remove first four characters of every entry (all spaces)
+        job_info = [array_with_spaces[4:] for array_with_spaces in job_info]
+        # split information into a dictionary and return it
+        return dict(item.split(" = ") for item in job_info[:-1])
+
+# checks if user is already running a jup_sched job
+def check_jup_sched_slurm(username):
+    jobs_name = subprocess.check_output(['squeue', '-u', username, '-t', 'RUNNING', '-h', '-o', '%j']).splitlines()
+    for job in jobs_name:
+	if(job == ".sbatch_jupyter"):
+	    return True
+
+    return False
+
+## given job id for slurm, returns dictionary with all info
+## if job doesn't exist, returns -1
+def get_job_info_slurm(job_number):
+    try:
+        # run scontrol with job id to view info about job
+        job_info = subprocess.check_output(['scontrol',   \
+                                            '--oneliner', \
+                                            'show',       \
+                                            'job',        \
+                                            str(job_number)])
+    except:
+        # if job doesn't exist return -1
+        return -1
+
+    # Empty split breaks on whitespace
+    job_info = job_info.split()
+    # return dictionary with information
+    return dict(item.split("=", 1) for item in job_info) 
+
+
+# deletes a file given its name with an absolute path
+def delete_file(filename):
+    try:
+        os.remove(filename)
+    except OSError as exception:
+        # errno.ENOENT = no such file or directory
+        if exception.errno != errno.ENOENT:
+            # re-raise exception if a different error occurred 
+            raise
+
+
+# creates file given its name with path and content
+def create_file(filename, content):
+    try:
+        file_object = open(filename, 'w+')
+        file_object.write(content)
+        file_object.close()
+    except IOError as exception:
+        raise
+
+
+# creates a directory if it doesn't exist given filename with path
+# returns 0 if dir existed or 1 if it was created
+def create_dir(dir_path):
+    try:
+        os.makedirs(dir_path)
+        return 1
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+        return 0
+
+
+# given the amount of time and email, returns the submission file header as string
+def create_qsub_header(running_time, gpu, email):
+    # add shebang for environment
+    header  = "#!/bin/bash"
+
+    # add standard job name for later checking if job is scheduled
+    header += "\n#PBS -N jup_sched"
+    # check if gpu is required
+    if(gpu):
+        header += "\n#PBS -l nodes=1:ppn=1:gpus=1"
+    else:
+        header += "\n#PBS -l nodes=1:ppn=1"
+
+    header += "\n#PBS -l walltime=" + running_time
+    # if email is supplied then add it
+    if email != None:
+        header += "\n#PBS -m bea \
+                   \n#PBS -M " + email
+
+    header += "\njupyter notebook\n"
+
+    return header
+
+
+#given the amount of time, returns submission file header as string
+def create_sbatch_header(running_time, gpu, python2, email, debug):
+    header = "#!/bin/bash \
+              \n#SBATCH -N 1 \
+              \n#SBATCH -n 1 \
+              \n#SBATCH -t 0-" + running_time
+    
+    if(not debug):
+        header += "\n#SBATCH -o /dev/null \
+                   \n#SBATCH -e /dev/null"
+
+    if(gpu):
+        header += "\n#SBATCH --gres=gpu:1"
+
+    if email != None:
+        header += "\n#SBATCH --mail-user=" + email
+
+    header += "\nunset XDG_RUNTIME_DIR"
+
+    if(python2):
+        header += "\nmodule load powerai/1.6.0-py2.7"
+    else:
+        header += "\nmodule load powerai/1.6.0-py3.6"
+
+    header += "\njupyter notebook"
+
+    return header
+
+
+def create_jupyter_file(password, port):
+    # jupyter file (OS independent)
+    jupyter_dir         = "/home/" + os.getlogin() + "/.jupyter/"
+    jupyter_filename    = "jupyter_notebook_config.py"
+
+    # create content of jupyter file
+    create_dir(jupyter_dir)
+    create_file(jupyter_dir + jupyter_filename, create_jupyter_file_content(port, password))
+
+
+def create_jupyter_file_content(port, password):
+    jupyter_string = "c.NotebookApp.port = "          + \
+                     str(port)                        + \
+                     "\nc.NotebookApp.ip = '0.0.0.0'"       + \
+                     "\nc.NotebookApp.password = u'"  + \
+                     str(passwd(password))            + \
+                     "'\nc.NotebookApp.certfile = '/etc/ssl/certs/hal.ncsa.illinois.edu_cert.cer'"       + \
+                     "\nc.NotebookApp.keyfile = '/etc/ssl/certs/hal.ncsa.illinois.edu.key'"              + \
+                     "\nc.NotebookApp.open_browser = False"
+  
+    return jupyter_string
+
+
+def schedule_jupyter_torque(running_time, password, gpu, email = None):
+    head_port = -1
+    # declare variables for paths and names
+    torque_job_filename = "/home/" + os.getlogin() + "/.torque_submit.qsub"
+
+    # randomize jupyter compute host port
+    compute_port = random.randint(MIN_COMPUTE_PORT, MAX_COMPUTE_PORT)
+
+    #create jupyter settings file
+    create_jupyter_file(password, compute_port)
+
+    # delete files from previous runs
+    delete_file(torque_job_filename)
+    create_file(torque_job_filename, create_qsub_header(running_time, gpu, email))
+
+    # run scheduled file and get job id
+    submission_response = subprocess.check_output(['qsub', torque_job_filename])
+
+    job_id = int(re.search(r'\d+', submission_response).group())
+
+    # wait for job scheduling
+    print "[jupyter_scheduler INFO] Waiting for scheduler..."
+    schedule_return = wait_for_schedule_torque(job_id, compute_port)
+    if(schedule_return == 0):
+       print "[jupyter_scheduler ERROR] Your job took more than 1 minute to schedule, we don't support that yet, try again later"
+       subprocess.check_output(['qdel', str(job_id)])
+       return -1
+    elif(schedule_return == 1):
+       head_port = find_open_port_head()
+    else:
+        return -1
+
+    if(head_port == -1):
+        print "[jupyter_scheduler ERROR] All external ports are being used at the moment, try again later"
+        subprocess.check_output(['qdel', job_id])
+        return -1
+
+    # make ssh connection
+    ssh_local_forward(get_job_info_torque(job_id).get('exec_host').split('/')[0], compute_port, head_port)
+    return head_port
+
+# retrieve and parse job information use while and time.sleep to wait
+# Return: 0 = timeout
+#         1 = server is running on port
+#        -1 = unknown error
+def wait_for_schedule_torque(job_id, compute_port, max_seconds = 60):
+    counter = 0
+    while(1):
+        job_info = get_job_info_torque(job_id)
+        if(job_info.get('job_state') == 'R' or counter == max_seconds):
+            break
+        else:
+            time.sleep(1)
+            counter = counter + 1
+
+    if(counter == max_seconds):
+        return 0
+    elif(port_use_checker(job_info.get('exec_host').split('/')[0], compute_port) == 0):
+        return 1
+    else:
+        return -1
+
+
+def schedule_jupyter_slurm(running_time, password, gpu, python2, debug, email = None):
+    # declare variable for path and name of submission
+    slurm_job_filename = "/home/" + os.getlogin() + "/.sbatch_jupyter"
+
+    # randomize jupyter compute host port
+    compute_port = random.randint(MIN_COMPUTE_PORT, MAX_COMPUTE_PORT)
+
+    #create jupyter settings file
+    create_jupyter_file(password, compute_port)
+
+    # delete files from previous runs
+    delete_file(slurm_job_filename)
+    create_file(slurm_job_filename, create_sbatch_header(running_time, gpu, python2, email, debug))
+
+    # run scheduler file and get job id
+    submission_response = subprocess.check_output(['sbatch', slurm_job_filename])
+    job_id = int(submission_response.split('Submitted batch job ',1)[1])
+
+    # wait for job scheduling
+    print "[jupyter_scheduler INFO] Waiting for scheduler..."
+    schedule_return = wait_for_schedule_slurm(job_id, compute_port)
+    if(schedule_return == 0):
+       print("Your job took more than 1 minute to schedule, cancel")
+       return -1
+    elif(schedule_return == 1):
+       head_port = find_open_port_head()
+    else:
+        return -1
+    
+    # make ssh connection    
+    ssh_local_forward(get_job_info_slurm(job_id).get('BatchHost'), compute_port, head_port)
+    return head_port
+
+# retrieve and parse job information use while and time.sleep to wait
+# Return: 0 = timeout
+#         1 = server is running on port
+#        -1 = unknown error
+def wait_for_schedule_slurm(job_id, compute_port, max_seconds = 60):
+    counter = 0
+    while(1):
+        job_info = get_job_info_slurm(job_id)
+        if(job_info.get('JobState') == 'RUNNING' or counter == max_seconds):
+            break
+        else:
+            time.sleep(1)
+            counter = counter + 1
+   
+    if(counter == max_seconds):
+        return 0
+    elif(port_use_checker(job_info.get('BatchHost'), compute_port) == 0):
+	return 1
+    else:
+        return -1
+
+
+def ssh_local_forward(host, compute_port, head_port):
+    subprocess.call(['ssh',
+                     '-M', '-N', '-f', '-T', '-L',
+                      HEAD_NODE+":"+str(head_port)+':'+host+':'+str(compute_port),host])    
+
+# returns open port
+# returns -1 if no port in range is available
+def find_open_port_head():
+    port = random.randint(MIN_HEAD_PORT, MAX_HEAD_PORT)
+    for i in range(0, MAX_HEAD_PORT - MIN_HEAD_PORT):
+        if str(port) not in subprocess.check_output(['netstat', '-an']):
+            return port
+        else:
+            port = port + 1 if (port + 1 <= MAX_HEAD_PORT) else MIN_HEAD_PORT
+
+    return -1
+
+# Given a host and a port checks if port is listening
+def port_use_checker(host, port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    result = sock.connect_ex((host,port))
+    if result == 0:
+       return 1 # port is open
+    else:
+       return 0
+
+# Validate walltime entered
+def valid_walltime(s):
+    split = s.split(":")
+    if(len(split) != 3 or (all(len(i) == 2 for i in split) == False)):
+        raise argparse.ArgumentTypeError("invalid format for time")
+
+    if(not (
+       (0 <= int(split[0]) <= 99) and 
+       (0 <= int(split[1]) <  60) and 
+       (0 <= int(split[2]) <  60))):
+	raise argparse.ArgumentTypeError("invalid format for time") 
+    
+    if((int(split[0]) > 12) or (
+       (int(split[0]) == 12) and (
+       (int(split[1]) > 0) or
+       (int(split[2]) > 0)))):
+        raise argparse.ArgumentTypeError("maximum walltime permitted is 12:00:00")
+
+    return s
+
+# Print password
+def print_pass():
+    filename = "/home/" + os.getlogin() + "/.jupyter/.jupyter_pass"
+    try:
+        file = open(filename, 'r')
+        info = file.read().split(',')
+	print("\n==================================== \
+               \nPlease direct your browser to:\n"
+              +info[0]
+              +"\nUse the password to login:\n"
+              +info[1]
+              +"===================================\n"
+              +"\nRun \"jup_sched --password\" to view this message again\n")
+    except IOError:
+        print "[jupyter_scheduler ERROR] could not find your info, are you sure you have a notebook scheduled?"
+
+#========================================================================================================
+parser = argparse.ArgumentParser(description="Jupyter Notebook Scheduler")
+# options which require arguments
+parser.add_argument("-e",
+                    "--email",
+                    type=str,
+                    help="specify an email address for the scheduler communication")
+
+parser.add_argument("-t",
+                    "--time",
+                    type=valid_walltime,
+                    help="specify the running time for the scheduler in the format HH:MM:SS")
+
+# options which do not require arguments
+parser.add_argument("--gpu",
+                    action="store_true",
+                    help="use this option if you require a GPU to be scheduled")
+
+parser.add_argument("-py2",
+                    "--python2",
+                    action="store_true",
+                    help="use a Python 2.x environment (Python 3.x is used by default)")
+
+parser.add_argument("--password",
+                    action="store_true",
+                    help="re-print the password and address for the jupyter notebook \
+		          WILL IGNORE ALL OTHER ARGUMENTS")
+
+parser.add_argument("-d",
+                    "--debug",
+                    action="store_true",
+                    help="keep the scheduler's transcript of the console output (off by default)")
+
+args = parser.parse_args()
+
+password = subprocess.check_output(['openssl', 'rand', '-hex', '10']).rstrip('\n')
+
+ret_val = 0
+
+# checks for running instances
+running_bool = check_jup_sched_slurm(os.getlogin())
+
+if(running_bool and (not args.password)):
+    print "[jupyter_scheduler ERROR] you already have a scheduled jupyter notebook. We only support one notebook per user at this time."
+    raise SystemExit()
+elif((not running_bool) and args.password):
+    print "[jupyter_scheduler ERROR] you don't have a notebook scheduled."
+    raise SystemExit()
+elif(running_bool and args.password):
+    print_pass()
+    raise SystemExit()
+elif(args.time == None):
+   print "[jupyter_scheduler INFO] no time on arguments, scheduling notebook for 1 HOUR"
+   ret_val = schedule_jupyter_slurm("01:00:00", password, args.gpu, args.python2, args.debug, args.email)
+else: 
+   ret_val = schedule_jupyter_slurm(args.time, password, args.gpu, args.python2, args.debug, args.email)
+
+if MIN_HEAD_PORT <= ret_val <= MAX_HEAD_PORT:
+    create_file("/home/" + os.getlogin() + "/.jupyter/.jupyter_pass",
+                "https://" + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
+    print_pass()
