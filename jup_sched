@@ -211,8 +211,6 @@ def create_jupyter_file_content(port, password):
                      "\nc.NotebookApp.ip = '0.0.0.0'"       + \
                      "\nc.NotebookApp.password = u'"  + \
                      str(passwd(password))            + \
-                     "'\nc.NotebookApp.certfile = '/etc/ssl/certs/hal.ncsa.illinois.edu_cert.cer'"       + \
-                     "\nc.NotebookApp.keyfile = '/etc/ssl/certs/hal.ncsa.illinois.edu.key'"              + \
                      "\nc.NotebookApp.open_browser = False"
   
     return jupyter_string
