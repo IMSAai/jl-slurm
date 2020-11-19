@@ -188,12 +188,9 @@ def create_sbatch_header(running_time, partition, python2, email, debug):
 
     header += "\nunset XDG_RUNTIME_DIR"
 
-    if(python2):
-        header += "\nmodule load powerai/1.6.0-py2.7"
-    else:
-        header += "\nmodule load powerai/1.6.0-py3.6"
+    header += "\nsource activate conda"
 
-    header += "\njupyter notebook"
+    header += "\njupyter lab --ip 0.0.0.0"
 
     return header
 
