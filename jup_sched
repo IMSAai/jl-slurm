@@ -148,7 +148,7 @@ def create_dir(dir_path):
 
 
 # given the amount of time and email, returns the submission file header as string
-def create_qsub_header(running_time, gpu, email):
+def create_qsub_header(running_time, partition, email):
     # add shebang for environment
     header  = "#!/bin/bash"
 
@@ -172,7 +172,7 @@ def create_qsub_header(running_time, gpu, email):
 
 
 #given the amount of time, returns submission file header as string
-def create_sbatch_header(running_time, gpu, python2, email, debug):
+def create_sbatch_header(running_time, partition, python2, email, debug):
     header = "#!/bin/bash \
               \n#SBATCH -N 1 \
               \n#SBATCH -n 1 \
@@ -181,9 +181,7 @@ def create_sbatch_header(running_time, gpu, python2, email, debug):
     if(not debug):
         header += "\n#SBATCH -o /dev/null \
                    \n#SBATCH -e /dev/null"
-
-    if(gpu):
-        header += "\n#SBATCH --gres=gpu:1"
+    header += "\n#SBATCH -p {}".format(partition)
 
     if email != None:
         header += "\n#SBATCH --mail-user=" + email
@@ -223,7 +221,7 @@ def create_jupyter_file_content(port, password):
     return jupyter_string
 
 
-def schedule_jupyter_torque(running_time, password, gpu, email = None):
+def schedule_jupyter_torque(running_time, password, partition, email = None):
     head_port = -1
     # declare variables for paths and names
     torque_job_filename = "/home/" + os.getlogin() + "/.torque_submit.qsub"
@@ -236,7 +234,7 @@ def schedule_jupyter_torque(running_time, password, gpu, email = None):
 
     # delete files from previous runs
     delete_file(torque_job_filename)
-    create_file(torque_job_filename, create_qsub_header(running_time, gpu, email))
+    create_file(torque_job_filename, create_qsub_header(running_time, partition, email))
 
     # run scheduled file and get job id
     submission_response = subprocess.check_output(['qsub', torque_job_filename])
@@ -286,7 +284,7 @@ def wait_for_schedule_torque(job_id, compute_port, max_seconds = 60):
         return -1
 
 
-def schedule_jupyter_slurm(running_time, password, gpu, python2, debug, email = None):
+def schedule_jupyter_slurm(running_time, password, partition, python2, debug, email = None):
     # declare variable for path and name of submission
     slurm_job_filename = "/home/" + os.getlogin() + "/.sbatch_jupyter"
 
@@ -298,7 +296,7 @@ def schedule_jupyter_slurm(running_time, password, gpu, python2, debug, email = 
 
     # delete files from previous runs
     delete_file(slurm_job_filename)
-    create_file(slurm_job_filename, create_sbatch_header(running_time, gpu, python2, email, debug))
+    create_file(slurm_job_filename, create_sbatch_header(running_time, partition, python2, email, debug))
 
     # run scheduler file and get job id
     submission_response = subprocess.check_output(['sbatch', slurm_job_filename])
@@ -416,10 +414,11 @@ parser.add_argument("-t",
                     type=valid_walltime,
                     help="specify the running time for the scheduler in the format HH:MM:SS")
 
+parser.add_argument("-p",
+                    "--partition",
+                    type=str,
+                    help="specify the partition to run the job in")
 # options which do not require arguments
-parser.add_argument("--gpu",
-                    action="store_true",
-                    help="use this option if you require a GPU to be scheduled")
 
 parser.add_argument("-py2",
                     "--python2",
@@ -456,9 +455,9 @@ elif(running_bool and args.password):
     raise SystemExit()
 elif(args.time == None):
    print "[jupyter_scheduler INFO] no time on arguments, scheduling notebook for 1 HOUR"
-   ret_val = schedule_jupyter_slurm("01:00:00", password, args.gpu, args.python2, args.debug, args.email)
+   ret_val = schedule_jupyter_slurm("01:00:00", password, args.partition, args.python2, args.debug, args.email)
 else: 
-   ret_val = schedule_jupyter_slurm(args.time, password, args.gpu, args.python2, args.debug, args.email)
+   ret_val = schedule_jupyter_slurm(args.time, password, args.partition, args.python2, args.debug, args.email)
 
 if MIN_HEAD_PORT <= ret_val <= MAX_HEAD_PORT:
     create_file("/home/" + os.getlogin() + "/.jupyter/.jupyter_pass",
