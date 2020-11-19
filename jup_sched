@@ -7,8 +7,8 @@ MIN_COMPUTE_PORT = 8000
 MAX_COMPUTE_PORT = 9000
 MIN_HEAD_PORT = 10080
 MAX_HEAD_PORT = 10090
-HEAD_NODE = '141.142.153.73'
-HEAD_NODE_NAME = 'hal.ncsa.illinois.edu'
+HEAD_NODE = '24.1.119.239'
+HEAD_NODE_NAME = 'slurm.epochml.org'
 
 # function to hash password for jupyter notebook file
 def passwd(passphrase, algorithm='sha1'):
@@ -343,7 +343,7 @@ def wait_for_schedule_slurm(job_id, compute_port, max_seconds = 60):
 
 def ssh_local_forward(host, compute_port, head_port):
     subprocess.call(['ssh',
-                     '-M', '-N', '-f', '-T', '-L',
+                     '-p 54110', '-M', '-N', '-f', '-T', '-L',
                       HEAD_NODE+":"+str(head_port)+':'+host+':'+str(compute_port),host])    
 
 # returns open port
