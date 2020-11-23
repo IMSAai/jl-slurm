@@ -248,11 +248,11 @@ def valid_walltime(s):
        (0 <= int(split[2]) <  60))):
 	    raise argparse.ArgumentTypeError("invalid format for time") 
     
-    if((int(split[0]) > 12) or (
-       (int(split[0]) == 12) and (
+    if((int(split[0]) > 24) or (
+       (int(split[0]) == 24) and (
        (int(split[1]) > 0) or
        (int(split[2]) > 0)))):
-        raise argparse.ArgumentTypeError("maximum walltime permitted is 12:00:00")
+        raise argparse.ArgumentTypeError("maximum walltime permitted is 24:00:00")
 
     return s
 
