@@ -8,7 +8,7 @@ MAX_COMPUTE_PORT = 9000
 MIN_HEAD_PORT = 10080
 MAX_HEAD_PORT = 10090
 HEAD_NODE = '10.250.119.15'
-HEAD_NODE_NAME = 'slurm.epochml.org'
+HEAD_NODE_NAME = 'slurm.cluster.epochml.org'
 
 # function to hash password for jupyter notebook file
 def passwd(passphrase, algorithm='sha1'):
@@ -454,5 +454,5 @@ else:
 
 if MIN_HEAD_PORT <= ret_val <= MAX_HEAD_PORT:
     create_file("/home/" + os.getlogin() + "/.jupyter/.jupyter_pass",
-                "https://" + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
+                "http://" + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
     print_pass()
