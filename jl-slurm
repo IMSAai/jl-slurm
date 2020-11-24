@@ -259,7 +259,7 @@ Use the password:
 {}
 to login.
 ====================================
-Run \"jup_sched --password\" to view this message again
+Run \"jl-slurm --password\" to view this message again
         """.format(info[0], info[1])
         )
     except IOError:
