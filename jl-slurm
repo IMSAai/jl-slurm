@@ -24,19 +24,6 @@ def passwd(passphrase, algorithm='sha1'):
     return ':'.join((algorithm, salt, h.hexdigest()))
     
 
-# given a job id, returns a dictionary with all info received from qstat -f
-# if job doesn't exist, returns -1
-def get_job_info_slurm(job_number):    
-    try:
-        # run qstat command with -f option to return in lines and split them
-        job_info = subprocess.check_output(['qstat', '-f', '-1', str(job_number)]).splitlines()
-    except:
-        # if job id doesn't exist return -1
-        return -1
-
-    # parse job string
-    return parse_job_info_torque(job_info) 
-
 # helper function to parse job raw input
 def parse_job_info_torque(job_info):
     # check for empty string
