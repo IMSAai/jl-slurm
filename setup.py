@@ -13,7 +13,7 @@ def read(fname):
 
 setup(
     name = "jl-slurm",
-    version = "1.0.0",
+    version = "1.1.0",
     author = "EpochML",
     author_email = "webmaster@epochml.org",
     maintainer = "EpochML",
