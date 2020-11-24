@@ -28,9 +28,11 @@ optional arguments:
 
 ## Building packages
 **Debian/Ubuntu**
+
 Run `make build_deb` and install the `.deb` file that is outputted in folder `deb_dist`.
 
 **Other platforms**
+
 Run `make build_wheel` and install the `.whl` file (outputted in `dist` folder) using `pip3`.
 
 ## Supported schedulers
