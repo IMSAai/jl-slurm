@@ -22,12 +22,12 @@ setup(
     license = "BSD",
     platforms=['Linux'],
     project_urls={
-        "Bug Tracker": "https://github.com/epochml/jup_sched/issues",
-        "Documentation": "https://github.com/epochml/jup_sched/blob/master/README.md",
-        "Source Code": "https://github.com/epochml/jup_sched/",
+        "Bug Tracker": "https://github.com/epochml/jl-slurm/issues",
+        "Documentation": "https://github.com/epochml/jl-slurm/blob/master/README.md",
+        "Source Code": "https://github.com/epochml/jl-slurm/",
     },
     keywords = "slurm python development jupyterlab",
-    url = "https://github.com/epochml/jup_sched",
+    url = "https://github.com/epochml/jl-slurm",
     scripts=['jl-slurm'],
     long_description=read('README.md'),
     classifiers=[
