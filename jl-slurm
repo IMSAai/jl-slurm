@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, errno, subprocess, argparse, random, hashlib, socket, time, re, string
+import os, errno, subprocess, argparse, random, hashlib, socket, time, re, string, sys
 
 ### CONSTANTS ###
 MIN_COMPUTE_PORT = 8000
@@ -317,15 +317,16 @@ parser.add_argument("-d",
                     help="keep the scheduler's transcript of the console output (off by default)")
 
 args = parser.parse_args()
-
 password = gen_password()
 
 ret_val = 0
 
 # checks for running instances
 running_bool = check_jup_sched_slurm(os.getlogin())
-
-if(running_bool and (not args.password)):
+if len(sys.argv) == 1:
+    parser.print_help()
+    raise SystemExit()
+elif(running_bool and (not args.password)):
     print("[jupyter_scheduler ERROR] you already have a scheduled jupyter notebook. We only support one notebook per user at this time.")
     raise SystemExit()
 elif((not running_bool) and args.password):
