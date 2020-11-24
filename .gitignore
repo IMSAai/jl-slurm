@@ -2,3 +2,4 @@
 build
 dist
 jl_slurm.egg-info
+deb_dist
