@@ -117,7 +117,7 @@ def create_sbatch_header(running_time, partition, python2, email, debug, condaen
     header += "\nunset XDG_RUNTIME_DIR"
     header += "\n source activate {}".format(condaenv)
 
-    header += "\n/opt/conda/envs/conda/bin/jupyter lab --ip 0.0.0.0"
+    header += "\n~/.local/bin/jupyter jupyter lab --ip 0.0.0.0"
 
     return header
 
