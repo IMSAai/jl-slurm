@@ -4,8 +4,8 @@ Scheduler for Jupyter Notebook on clusters where compute nodes are hidden behind
 This version of the scheduler is forked from [NCSA](https://github.com/ncsa/jup_sched).
 ## Usage
 ```
-usage: jup_sched [-h] [-e EMAIL] [-t TIME] [-r RESERVATION]
-                 [-py2] [--password] [-d]
+usage: jl-slurm [-h] [-e EMAIL] [-t TIME] [-p PARTITION] [-py2] [--password]
+                [-d]
 
 Jupyter Notebook Scheduler
 
@@ -16,8 +16,8 @@ optional arguments:
                         communication
   -t TIME, --time TIME  specify the running time for the scheduler in the
                         format HH:MM:SS
-  -r RESERVATION, --reservation RESERVATION
-                        specify a reservation to submit the job to
+  -p PARTITION, --partition PARTITION
+                        specify the partition to run the job in
   -py2, --python2       use a Python 2.x environment (Python 3.x is used by
                         default)
   --password            re-print the password and address for the jupyter
