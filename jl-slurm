@@ -41,7 +41,7 @@ def parse_job_info_torque(job_info):
 def check_jup_sched_slurm(username):
     jobs_name = subprocess.check_output(['squeue', '-u', username, '-t', 'RUNNING', '-h', '-o', '%j']).splitlines()
     for job in jobs_name:
-        if(job == ".sbatch_jupyter"):
+        if(job == ".jupyterlab"):
             return True
 
     return False
