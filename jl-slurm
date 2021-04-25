@@ -194,6 +194,7 @@ def ssh_local_forward(host, compute_port, head_port):
         host = socket.gethostbyname(host)
     except socket.gaierror:
         print('SSH reverse tunnel could not be created - DNS resolution failed!')
+    subprocess.call(['kinit'])
     subprocess.call(['ssh',
                      '-M', '-N', '-f', '-T', '-L',
                       str(head_port)+':'+host+':'+str(compute_port),HEAD_NODE])    
@@ -309,14 +310,8 @@ running_bool = check_jup_sched_slurm(pwd.getpwuid(os.getuid())[0])
 if len(sys.argv) == 1:
     parser.print_help()
     raise SystemExit()
-elif(running_bool and (not args.password)):
+elif(running_bool):
     print("[jupyter_scheduler ERROR] you already have a scheduled jupyter notebook. We only support one notebook per user at this time.")
-    raise SystemExit()
-elif((not running_bool) and args.password):
-    print("[jupyter_scheduler ERROR] you don't have a notebook scheduled.")
-    raise SystemExit()
-elif(running_bool and args.password):
-    print_pass()
     raise SystemExit()
 elif(args.time == None):
    print("[jupyter_scheduler INFO] no time on arguments, scheduling notebook for 1 HOUR")
