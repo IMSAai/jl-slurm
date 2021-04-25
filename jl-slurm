@@ -61,9 +61,11 @@ def get_job_info_slurm(job_number):
         return -1
 
     # Empty split breaks on whitespace
+    job_info = job_info.decode('ascii')
     job_info = job_info.split()
+    del job_info[4]
     # return dictionary with information
-    return dict(item.decode().split("=", 1) for item in job_info) 
+    return dict(item.split("=", 1) for item in job_info) 
 
 
 # deletes a file given its name with an absolute path
@@ -149,7 +151,6 @@ def schedule_jupyter_slurm(running_time, password, partition, python2, debug, em
 
     # randomize jupyter compute host port
     compute_port = random.randint(MIN_COMPUTE_PORT, MAX_COMPUTE_PORT)
-
     #create jupyter settings file
     create_jupyter_file(password, compute_port)
 
@@ -165,10 +166,13 @@ def schedule_jupyter_slurm(running_time, password, partition, python2, debug, em
     print("[jupyter_scheduler INFO] Waiting for scheduler...")
     schedule_return = wait_for_schedule_slurm(job_id, compute_port)
     if(schedule_return == 0):
-       print("Your job took more than 1 minute to schedule, cancel")
+       print("Your job took more than 1 minute to schedule, canceling...")
        return -1
     elif(schedule_return == 1):
        head_port = find_open_port_head()
+    elif(schedule_return == 2):
+        print("Your SLURM job failed to schedule. Please, try again.")
+        return -1
     else:
         return -1
     
@@ -186,6 +190,8 @@ def wait_for_schedule_slurm(job_id, compute_port, max_seconds = 60):
         job_info = get_job_info_slurm(job_id)
         if(job_info.get('JobState') == 'RUNNING' or counter == max_seconds):
             break
+        elif job_info.get('JobState') == 'FAILED':
+            return 2
         else:
             time.sleep(1)
             counter = counter + 1
