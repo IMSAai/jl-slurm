@@ -301,8 +301,6 @@ if len(sys.argv) == 1:
 elif(running_bool):
     print("[jupyter_scheduler ERROR] you already have a scheduled jupyter notebook. We only support one notebook per user at this time.")
     raise SystemExit()
-if args.condaenv == None:
-    args.condaenv = "base"
 elif(args.time == None):
    print("[jupyter_scheduler INFO] no time on arguments, scheduling notebook for 1 HOUR")
    ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.email, args.condaenv, args.partition)
