@@ -121,7 +121,7 @@ def create_jupyter_file(password, port):
 def create_jupyter_file_content(port, password):
     jupyter_string = "c.NotebookApp.port = "          + \
                      str(port)                        + \
-                     "\nc.NotebookApp.ip = '{}'".format(REVERSE_PROXY_IP)       + \
+                     "\nc.NotebookApp.ip = '0.0.0.0'"       + \
                      "\nc.NotebookApp.password = u'"  + \
                      str(passwd(password)) + "'"           + \
                      "\nc.NotebookApp.open_browser = False"
