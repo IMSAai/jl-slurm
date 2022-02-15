@@ -298,10 +298,8 @@ ret_val = 0
 
 # checks for running instances
 running_bool = check_jup_sched_slurm(pwd.getpwuid(os.getuid())[0])
-if len(sys.argv) == 1:
-    parser.print_help()
-    raise SystemExit()
-elif(running_bool):
+
+if(running_bool):
     print("[jupyter_scheduler ERROR] you already have a scheduled jupyter notebook. We only support one notebook per user at this time.")
     raise SystemExit()
 elif(args.time == None):
