@@ -255,11 +255,6 @@ def gen_password():
 #========================================================================================================
 parser = argparse.ArgumentParser(description="Jupyter Notebook Scheduler")
 # options which require arguments
-parser.add_argument("-e",
-                    "--email",
-                    type=str,
-                    help="specify an email address for the scheduler communication")
-
 parser.add_argument("-t",
                     "--time",
                     type=valid_walltime,
