@@ -152,13 +152,13 @@ def schedule_jupyter_slurm(running_time, password, partition, python2, debug, em
        print("Your job took more than 1 minute to schedule, canceling...")
        return -1
     elif(schedule_return == 1):
-       head_port = find_open_port_head()
+    	access_url = "{get_job_info_slurm(job_id).get('BatchHost')}.jl.epochml.org:{compute_port}"
+	print(access_url)
     elif(schedule_return == 2):
         print("Your SLURM job failed to schedule. Please, try again.")
         return -1
     else:
         return -1
-    access_url = "{get_job_info_slurm(job_id).get('BatchHost')}.jl.epochml.org:{compute_port}"
     # make ssh connection    
     return compute_port
 
