@@ -26,7 +26,7 @@ def passwd(passphrase, algorithm='sha1'):
 def check_jup_sched_slurm(username):
     jobs_name = subprocess.check_output(['squeue', '-u', username, '-t', 'RUNNING', '-h', '-o', '%j']).splitlines()
     for job in jobs_name:
-        if(job == ".jupyter"):
+        if(job == ".jl-slurm"):
             return True
 
     return False
@@ -110,7 +110,7 @@ def create_sbatch_header(running_time, partition, python2, email, debug, condaen
 
 def create_jupyter_file(password, port):
     # jupyter file (OS independent)
-    jupyter_dir         = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jupyter/"
+    jupyter_dir         = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm/"
     jupyter_filename    = "jupyter_notebook_config.py"
 
     # create content of jupyter file
@@ -131,7 +131,7 @@ def create_jupyter_file_content(port, password):
 
 def schedule_jupyter_slurm(running_time, password, python2, debug, email = None, condaenv = "base", partition = "cpu-long"):
     # declare variable for path and name of submission
-    slurm_job_filename = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jupyterlab"
+    slurm_job_filename = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm"
 
     # randomize jupyter compute host port
     compute_port = random.randint(MIN_COMPUTE_PORT, MAX_COMPUTE_PORT)
@@ -229,7 +229,7 @@ def valid_walltime(s):
 
 # Print password
 def print_pass():
-    filename = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jupyter/.jupyter_pass"
+    filename = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm/.jl-slurm_pass"
     try:
         file = open(filename, 'r')
         info = file.read().split(',')
@@ -306,6 +306,6 @@ elif(args.time == None):
    ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.email, args.condaenv, args.partition)
 else: 
     ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.email, args.condaenv, args.partition)
-    create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jupyter/.jupyter_pass",
+    create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/./.jl-slurm_pass",
                 "https://" + host + "." + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
     print_pass()
