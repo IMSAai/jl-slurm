@@ -106,7 +106,7 @@ def create_sbatch_header(running_time, partition, python2, email, debug, condaen
     header += "\nsource activate {}".format(condaenv)
 
     header += "\n/home/tools/anaconda3/bin/jupyter lab --ip 0.0.0.0 --no-browser --ServerApp.allow_origin='*' --collaborative"
-    print(header)
+
     return header
 
 
@@ -175,7 +175,6 @@ def wait_for_schedule_slurm(job_id, compute_port, max_seconds = 60):
         if(job_info.get('JobState') == 'RUNNING' or counter == max_seconds):
             break
         elif job_info.get('JobState') == 'FAILED':
-            print(job_info)
             return 2
         else:
             time.sleep(1)
