@@ -25,7 +25,7 @@ def passwd(passphrase, algorithm='sha1'):
 def check_jup_sched_slurm(username):
     jobs_name = subprocess.check_output(['squeue', '-u', username, '-t', 'RUNNING', '-h', '-o', '%j']).splitlines()
     for job in jobs_name:
-        if(job == ".jupyterlab"):
+        if(job == ".jupyter"):
             return True
 
     return False
