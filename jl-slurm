@@ -301,9 +301,9 @@ elif(running_bool):
     raise SystemExit()
 elif(args.time == None):
    print("[jupyter_scheduler INFO] no time on arguments, scheduling notebook for 1 HOUR")
-   ret_val,host = schedule_jupyter_slurm("01:00:00", password, args.partition, args.python2, args.debug, args.email)
+   ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.email, args.condaenv, args.partition)
 else: 
-    ret_val,host = schedule_jupyter_slurm(args.time, password, args.partition, args.python2, args.debug, args.email, args.condaenv)
+    ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.email, args.condaenv, args.partition)
     create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jupyter/.jupyter_pass",
                 "https://" + host + "." + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
     print_pass()
