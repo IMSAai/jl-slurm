@@ -105,6 +105,7 @@ def create_sbatch_header(running_time, partition, python2, email, debug, condaen
     header += "\nsource activate {}".format(condaenv)
 
     header += "\n/home/tools/anaconda3/bin/jupyter lab --ip 0.0.0.0 --no-browser --ServerApp.allow_origin='*' --collaborative --port {} --NotebookApp.password = u'{}'".format(port, password)
+    print(header)
     return header
 
 
