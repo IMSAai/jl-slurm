@@ -273,7 +273,8 @@ parser.add_argument("-p",
 parser.add_argument("-c",
                     "--condaenv",
                     type=str,
-                    help="specify the conda environment to activate")
+                    help="specify the conda environment to activate",
+                    default="base")
 # options which do not require arguments
 
 parser.add_argument("-py2",
