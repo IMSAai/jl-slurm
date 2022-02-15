@@ -305,9 +305,7 @@ elif(args.time == None):
    print("[jupyter_scheduler INFO] no time on arguments, scheduling notebook for 1 HOUR")
    ret_val = schedule_jupyter_slurm("01:00:00", password, args.partition, args.python2, args.debug, args.email)
 else: 
-   ret_val = schedule_jupyter_slurm(args.time, password, args.partition, args.python2, args.debug, args.email, args.condaenv)
-
-if MIN_HEAD_PORT <= ret_val <= MAX_HEAD_PORT:
+    ret_val = schedule_jupyter_slurm(args.time, password, args.partition, args.python2, args.debug, args.email, args.condaenv)
     create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jupyter/.jupyter_pass",
-                "http://" + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
+                "https://" + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
     print_pass()
