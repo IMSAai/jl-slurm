@@ -11,7 +11,7 @@ REVERSE_PROXY_IP = "10.250.119.19"
 
 # function to hash password for jupyter notebook file
 def passwd(passphrase, algorithm='sha1'):
-    return algorithm + ":" + hashlib.sha1(passphrase.encode())
+    return algorithm + ":" + hashlib.sha1(passphrase.encode()).hexdigest()
 
 # checks if user is already running a jup_sched job
 def check_jup_sched_slurm(username):
