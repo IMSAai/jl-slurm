@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
-import os, errno, subprocess, argparse, random, hashlib, socket, time, re, string, sys, pwd
+import os, errno, subprocess, argparse, random, hashlib, socket, time, string, time, pwd
 
 ### CONSTANTS ###
-MIN_COMPUTE_PORT = 8000
-MAX_COMPUTE_PORT = 9000
-MIN_HEAD_PORT = 10080
-MAX_HEAD_PORT = 10090
-HEAD_NODE = 'slurm.epochml.org'
-HEAD_NODE_NAME = 'slurm.epochml.org'
+MIN_COMPUTE_PORT = 10000
+MAX_COMPUTE_PORT = 10400
+HEAD_NODE = 'jl.epochml.org'
+HEAD_NODE_NAME = 'jl.epochml.org'
+REVERSE_PROXY_IP = "10.250.119.19"
 
 # function to hash password for jupyter notebook file
 def passwd(passphrase, algorithm='sha1'):
@@ -27,7 +26,7 @@ def passwd(passphrase, algorithm='sha1'):
 def check_jup_sched_slurm(username):
     jobs_name = subprocess.check_output(['squeue', '-u', username, '-t', 'RUNNING', '-h', '-o', '%j']).splitlines()
     for job in jobs_name:
-        if(job == ".jupyterlab"):
+        if(job == ".jl-slurm"):
             return True
 
     return False
@@ -88,7 +87,7 @@ def create_dir(dir_path):
 
 
 #given the amount of time, returns submission file header as string
-def create_sbatch_header(running_time, partition, python2, email, debug, condaenv):
+def create_sbatch_header(running_time, partition, python2, email, debug, condaenv, port, password):
     header = "#!/bin/bash \
               \n#SBATCH -N 1 \
               \n#SBATCH -n 1 \
@@ -105,7 +104,8 @@ def create_sbatch_header(running_time, partition, python2, email, debug, condaen
     header += "\nunset XDG_RUNTIME_DIR"
     header += "\nsource activate {}".format(condaenv)
 
-    header += "\n/opt/anaconda3/bin/jupyter lab --ip 0.0.0.0"
+    header += "\n/home/tools/anaconda3/bin/jupyter lab --ip 0.0.0.0 --no-browser --ServerApp.allow_origin='*' --collaborative"
+
     return header
 
 
@@ -122,7 +122,7 @@ def create_jupyter_file(password, port):
 def create_jupyter_file_content(port, password):
     jupyter_string = "c.NotebookApp.port = "          + \
                      str(port)                        + \
-                     "\nc.NotebookApp.ip = '0.0.0.0'"       + \
+                     "\nc.NotebookApp.ip = '*'"       + \
                      "\nc.NotebookApp.password = u'"  + \
                      str(passwd(password)) + "'"           + \
                      "\nc.NotebookApp.open_browser = False"
@@ -130,9 +130,9 @@ def create_jupyter_file_content(port, password):
     return jupyter_string
 
 
-def schedule_jupyter_slurm(running_time, password, partition, python2, debug, email = None, condaenv = "conda"):
+def schedule_jupyter_slurm(running_time, password, python2, debug, email = None, condaenv = "base", partition = "cpu-long"):
     # declare variable for path and name of submission
-    slurm_job_filename = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jupyterlab"
+    slurm_job_filename = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm-run"
 
     # randomize jupyter compute host port
     compute_port = random.randint(MIN_COMPUTE_PORT, MAX_COMPUTE_PORT)
@@ -141,7 +141,7 @@ def schedule_jupyter_slurm(running_time, password, partition, python2, debug, em
 
     # delete files from previous runs
     delete_file(slurm_job_filename)
-    create_file(slurm_job_filename, create_sbatch_header(running_time, partition, python2, email, debug, condaenv))
+    create_file(slurm_job_filename, create_sbatch_header(running_time, partition, python2, email, debug, condaenv, compute_port, password))
 
     # run scheduler file and get job id
     submission_response = subprocess.check_output(['sbatch', slurm_job_filename])
@@ -154,16 +154,14 @@ def schedule_jupyter_slurm(running_time, password, partition, python2, debug, em
        print("Your job took more than 1 minute to schedule, canceling...")
        return -1
     elif(schedule_return == 1):
-       head_port = find_open_port_head()
+        host = get_job_info_slurm(job_id).get('BatchHost')
     elif(schedule_return == 2):
         print("Your SLURM job failed to schedule. Please, try again.")
         return -1
     else:
         return -1
-    
     # make ssh connection    
-    ssh_local_forward(get_job_info_slurm(job_id).get('BatchHost'), compute_port, head_port)
-    return head_port
+    return compute_port, host
 
 # retrieve and parse job information use while and time.sleep to wait
 # Return: 0 = timeout
@@ -184,20 +182,9 @@ def wait_for_schedule_slurm(job_id, compute_port, max_seconds = 60):
     if(counter == max_seconds):
         return 0
     elif(port_use_checker(job_info.get('BatchHost'), compute_port) == 0):
-	    return 1
+        return 1
     else:
         return -1
-
-
-def ssh_local_forward(host, compute_port, head_port):
-    try:
-        host = socket.gethostbyname(host)
-    except socket.gaierror:
-        print('SSH reverse tunnel could not be created - DNS resolution failed!')
-    subprocess.call(['kinit'])
-    subprocess.call(['ssh',
-                     '-M', '-N', '-f', '-T', '-L',
-                      str(head_port)+':'+host+':'+str(compute_port),HEAD_NODE])    
 
 # returns open port
 # returns -1 if no port in range is available
@@ -230,7 +217,7 @@ def valid_walltime(s):
        (0 <= int(split[0]) <= 99) and 
        (0 <= int(split[1]) <  60) and 
        (0 <= int(split[2]) <  60))):
-	    raise argparse.ArgumentTypeError("invalid format for time") 
+        raise argparse.ArgumentTypeError("invalid format for time") 
     
     if((int(split[0]) > 24) or (
        (int(split[0]) == 24) and (
@@ -242,7 +229,7 @@ def valid_walltime(s):
 
 # Print password
 def print_pass():
-    filename = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jupyter/.jupyter_pass"
+    filename = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm/.jl-slurm_pass"
     try:
         file = open(filename, 'r')
         info = file.read().split(',')
@@ -276,17 +263,20 @@ parser.add_argument("-e",
 parser.add_argument("-t",
                     "--time",
                     type=valid_walltime,
+                    default="01:00:00",
                     help="specify the running time for the scheduler in the format HH:MM:SS")
 
 parser.add_argument("-p",
                     "--partition",
                     type=str,
+                    default="cpu-long",
                     help="specify the partition to run the job in")
 
 parser.add_argument("-c",
                     "--condaenv",
                     type=str,
-                    help="specify the conda environment to activate")
+                    help="specify the conda environment to activate",
+                    default="base")
 # options which do not require arguments
 
 parser.add_argument("-py2",
@@ -307,19 +297,16 @@ ret_val = 0
 
 # checks for running instances
 running_bool = check_jup_sched_slurm(pwd.getpwuid(os.getuid())[0])
-if len(sys.argv) == 1:
-    parser.print_help()
-    raise SystemExit()
-elif(running_bool):
+
+if(running_bool):
     print("[jupyter_scheduler ERROR] you already have a scheduled jupyter notebook. We only support one notebook per user at this time.")
     raise SystemExit()
 elif(args.time == None):
    print("[jupyter_scheduler INFO] no time on arguments, scheduling notebook for 1 HOUR")
-   ret_val = schedule_jupyter_slurm("01:00:00", password, args.partition, args.python2, args.debug, args.email)
+   ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.email, args.condaenv, args.partition)
 else: 
-   ret_val = schedule_jupyter_slurm(args.time, password, args.partition, args.python2, args.debug, args.email, args.condaenv)
-
-if MIN_HEAD_PORT <= ret_val <= MAX_HEAD_PORT:
-    create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jupyter/.jupyter_pass",
-                "http://" + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
+    ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.email, args.condaenv, args.partition)
+    create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm/.jl-slurm_pass",
+                "https://" + host + "." + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
+    time.sleep(5) # let jupyterlab start
     print_pass()
