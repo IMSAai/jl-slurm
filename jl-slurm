@@ -7,6 +7,7 @@ MIN_COMPUTE_PORT = 10000
 MAX_COMPUTE_PORT = 10400
 HEAD_NODE = 'jl.epochml.org'
 HEAD_NODE_NAME = 'jl.epochml.org'
+REVERSE_PROXY_IP = "10.250.119.19"
 
 # function to hash password for jupyter notebook file
 def passwd(passphrase, algorithm='sha1'):
@@ -120,7 +121,7 @@ def create_jupyter_file(password, port):
 def create_jupyter_file_content(port, password):
     jupyter_string = "c.NotebookApp.port = "          + \
                      str(port)                        + \
-                     "\nc.NotebookApp.ip = '*'"       + \
+                     "\nc.NotebookApp.ip = '{}'".format(REVERSE_PROXY_IP)       + \
                      "\nc.NotebookApp.password = u'"  + \
                      str(passwd(password)) + "'"           + \
                      "\nc.NotebookApp.open_browser = False"
