@@ -102,7 +102,8 @@ def create_sbatch_header(running_time, partition, python2, email, debug, condaen
         header += "\n#SBATCH --mail-user=" + email
 
     header += "\nunset XDG_RUNTIME_DIR"
-    header += "\neval '$(/home/tools/anaconda3/bin/conda shell.bash hook)'"
+    header += "\n/home/tools/anaconda3/bin/conda init"
+    header += "\nsource ~/.bashrc"
     header += "\nsource activate {}".format(condaenv)
     header += "\n/home/tools/anaconda3/bin/jupyter lab --ip 0.0.0.0 --no-browser --ServerApp.allow_origin='*' --collaborative"
 
