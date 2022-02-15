@@ -277,8 +277,8 @@ parser.add_argument("-e",
                     type=str,
                     help="specify the conda environment to activate",
                     default="base")
-parser.add_argument("-c",
-                    "--cpus",
+parser.add_argument("-n",
+                    "--ncpus",
                     type=int,
                     help="specify the number of CPUs for the lab environment",
                     default=2)
@@ -308,10 +308,10 @@ if(running_bool):
     raise SystemExit()
 elif(args.time == None):
    print("[jupyter_scheduler INFO] no time on arguments, scheduling notebook for 1 HOUR")
-   ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.cpus, args.email, args.condaenv, args.partition)
+   ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.ncpus, args.email, args.condaenv, args.partition)
 else: 
     print("[jupyter_scheduler INFO] scheduling notebook on partition {} for {}".format(args.partition, args.time))
-    ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.cpus, args.email, args.condaenv, args.partition)
+    ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.ncpus, args.email, args.condaenv, args.partition)
     create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm/.jl-slurm_pass",
                 "https://" + host + "." + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
     time.sleep(3) # let jupyterlab start
