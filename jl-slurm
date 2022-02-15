@@ -153,7 +153,7 @@ def schedule_jupyter_slurm(running_time, password, partition, python2, debug, em
        return -1
     elif(schedule_return == 1):
         host = get_job_info_slurm(job_id).get('BatchHost')
-        access_url = "{host}.jl.epochml.org:{compute_port}"
+        access_url = "{}.jl.epochml.org:{}".format(host, compute_port)
         print(access_url)
     elif(schedule_return == 2):
         print("Your SLURM job failed to schedule. Please, try again.")
