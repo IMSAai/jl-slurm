@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-from email.policy import default
-import os, errno, subprocess, argparse, random, hashlib, socket, time, re, string, sys, pwd
+import os, errno, subprocess, argparse, random, hashlib, socket, time, string, time, pwd
 
 ### CONSTANTS ###
 MIN_COMPUTE_PORT = 10000
@@ -309,4 +308,5 @@ else:
     ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.email, args.condaenv, args.partition)
     create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm/.jl-slurm_pass",
                 "https://" + host + "." + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
+    time.sleep(5) # let jupyterlab start
     print_pass()
