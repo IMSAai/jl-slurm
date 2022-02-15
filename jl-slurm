@@ -104,7 +104,7 @@ def create_sbatch_header(running_time, partition, python2, email, debug, condaen
     header += "\nunset XDG_RUNTIME_DIR"
     header += "\nsource activate {}".format(condaenv)
 
-    header += "\n/home/tools/anaconda3/bin/jupyter lab --collaborative"
+    header += "\n/home/tools/anaconda3/bin/jupyter lab --ServerApp.allow_origin='*' --collaborative"
     return header
 
 
@@ -125,7 +125,6 @@ def create_jupyter_file_content(port, password):
                      "\nc.NotebookApp.password = u'"  + \
                      str(passwd(password)) + "'"           + \
                      "\nc.NotebookApp.open_browser = False" + \
-                     "\nNotebookApp.allow_origin_pat='*.{}'".format(HEAD_NODE_NAME)
     print(jupyter_string)
     return jupyter_string
 
