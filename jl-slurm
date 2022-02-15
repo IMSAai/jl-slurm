@@ -306,6 +306,6 @@ elif(args.time == None):
    ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.email, args.condaenv, args.partition)
 else: 
     ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.email, args.condaenv, args.partition)
-    create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/./.jl-slurm_pass",
+    create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm/.jl-slurm_pass",
                 "https://" + host + "." + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
     print_pass()
