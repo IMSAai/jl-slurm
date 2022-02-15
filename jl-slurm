@@ -128,7 +128,7 @@ def create_jupyter_file_content(port, password):
     return jupyter_string
 
 
-def schedule_jupyter_slurm(running_time, password, partition, python2, debug, email = None, condaenv = "base"):
+def schedule_jupyter_slurm(running_time, password, partition = "cpu-long", python2, debug, email = None, condaenv = "base"):
     # declare variable for path and name of submission
     slurm_job_filename = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jupyterlab"
 
@@ -153,15 +153,13 @@ def schedule_jupyter_slurm(running_time, password, partition, python2, debug, em
        return -1
     elif(schedule_return == 1):
         host = get_job_info_slurm(job_id).get('BatchHost')
-        access_url = "{}.jl.epochml.org:{}".format(host, compute_port)
-        print(access_url)
     elif(schedule_return == 2):
         print("Your SLURM job failed to schedule. Please, try again.")
         return -1
     else:
         return -1
     # make ssh connection    
-    return compute_port
+    return compute_port, host
 
 # retrieve and parse job information use while and time.sleep to wait
 # Return: 0 = timeout
@@ -303,9 +301,9 @@ elif(running_bool):
     raise SystemExit()
 elif(args.time == None):
    print("[jupyter_scheduler INFO] no time on arguments, scheduling notebook for 1 HOUR")
-   ret_val = schedule_jupyter_slurm("01:00:00", password, args.partition, args.python2, args.debug, args.email)
+   ret_val,host = schedule_jupyter_slurm("01:00:00", password, args.partition, args.python2, args.debug, args.email)
 else: 
-    ret_val = schedule_jupyter_slurm(args.time, password, args.partition, args.python2, args.debug, args.email, args.condaenv)
+    ret_val,host = schedule_jupyter_slurm(args.time, password, args.partition, args.python2, args.debug, args.email, args.condaenv)
     create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jupyter/.jupyter_pass",
-                "https://" + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
+                "https://" + host + "." + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
     print_pass()
