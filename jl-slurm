@@ -125,7 +125,7 @@ def create_jupyter_file_content(port, password):
                      "\nc.NotebookApp.password = u'"  + \
                      str(passwd(password)) + "'"           + \
                      "\nc.NotebookApp.open_browser = False" + \
-                     "\nServerApp.allow_origin_pat='*.{}'".format(HEAD_NODE_NAME)
+                     "\nNotebookApp.allow_origin_pat='*.{}'".format(HEAD_NODE_NAME)
     print(jupyter_string)
     return jupyter_string
 
