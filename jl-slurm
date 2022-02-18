@@ -5,9 +5,7 @@ import os, errno, subprocess, argparse, random, hashlib, socket, time, string, t
 ### CONSTANTS ###
 MIN_COMPUTE_PORT = 10000
 MAX_COMPUTE_PORT = 10400
-HEAD_NODE = 'jl.epochml.org'
-HEAD_NODE_NAME = 'jl.epochml.org'
-REVERSE_PROXY_IP = "10.250.119.19"
+PROXY_HOST = 'jl.epochml.org'
 
 # function to hash password for jupyter notebook file
 def passwd(passphrase, algorithm='sha1'):
@@ -25,10 +23,10 @@ def passwd(passphrase, algorithm='sha1'):
 # checks if user is already running a jup_sched job
 def check_jup_sched_slurm(username):
     jobs_name = subprocess.check_output(['squeue', '-u', username, '-t', 'RUNNING', '-h', '-o', '%j']).splitlines()
+    print(jobs_name)
     for job in jobs_name:
-        if(job == ".jl-slurm"):
+        if(job == b'.jl-slurm-run'):
             return True
-
     return False
 
 ## given job id for slurm, returns dictionary with all info
@@ -87,7 +85,7 @@ def create_dir(dir_path):
 
 
 #given the amount of time, returns submission file header as string
-def create_sbatch_header(running_time, partition, python2, email, debug, condaenv, port, password, cpus=2):
+def create_sbatch_header(running_time, partition, python2, email, debug, condaenv, port, password, cpus=2,gpus=0):
     header = "#!/bin/bash \
               \n#SBATCH -N 1 \
               \n#SBATCH -n {} \
@@ -97,7 +95,8 @@ def create_sbatch_header(running_time, partition, python2, email, debug, condaen
         header += "\n#SBATCH -o /dev/null \
                    \n#SBATCH -e /dev/null"
     header += "\n#SBATCH -p {}".format(partition)
-
+    if gpus != 0:
+        header += "\n#SBATCH --gres=gpu:{}".format(gpus)
     if email != None:
         header += "\n#SBATCH --mail-user=" + email
 
@@ -131,7 +130,7 @@ def create_jupyter_file_content(port, password):
     return jupyter_string
 
 
-def schedule_jupyter_slurm(running_time, password, python2, debug, cpus, email = None, condaenv = "base", partition = "cpu-long"):
+def schedule_jupyter_slurm(running_time, password, python2, debug, cpus, gpus, email = None, condaenv = "base", partition = "cpu-long"):
     # declare variable for path and name of submission
     slurm_job_filename = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm-run"
 
@@ -142,7 +141,7 @@ def schedule_jupyter_slurm(running_time, password, python2, debug, cpus, email =
 
     # delete files from previous runs
     delete_file(slurm_job_filename)
-    create_file(slurm_job_filename, create_sbatch_header(running_time, partition, python2, email, debug, condaenv, compute_port, password,cpus))
+    create_file(slurm_job_filename, create_sbatch_header(running_time, partition, python2, email, debug, condaenv, compute_port, password,cpus,gpus))
 
     # run scheduler file and get job id
     submission_response = subprocess.check_output(['sbatch', slurm_job_filename])
@@ -187,18 +186,6 @@ def wait_for_schedule_slurm(job_id, compute_port, max_seconds = 60):
     else:
         return -1
 
-# returns open port
-# returns -1 if no port in range is available
-def find_open_port_head():
-    port = random.randint(MIN_HEAD_PORT, MAX_HEAD_PORT)
-    for i in range(0, MAX_HEAD_PORT - MIN_HEAD_PORT):
-        if str(port) not in subprocess.check_output(['netstat', '-an']).decode():
-            return port
-        else:
-            port = port + 1 if (port + 1 <= MAX_HEAD_PORT) else MIN_HEAD_PORT
-
-    return -1
-
 # Given a host and a port checks if port is listening
 def port_use_checker(host, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -227,7 +214,11 @@ def valid_walltime(s):
         raise argparse.ArgumentTypeError("maximum walltime permitted is 24:00:00")
 
     return s
-
+def valid_gpu(s):
+    s = int(s)
+    if s < 0:
+        raise argparse.ArgumentTypeError("minimum GPUs is 0")
+    return s
 # Print password
 def print_pass():
     filename = "/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm/.jl-slurm_pass"
@@ -237,11 +228,15 @@ def print_pass():
         print(
         """
 ==================================== 
+Your Jupyter Lab session has been created!
+
 Please direct your browser to:
 {}
 Use the password:
 {}
 to login.
+
+If you recieve an error, please wait 10 seconds and try again.
 ====================================
         """.format(info[0], info[1])
         )
@@ -266,24 +261,26 @@ parser.add_argument("-p",
                     "--partition",
                     type=str,
                     default="cpu-long",
-                    help="specify the partition to run the job in")
+                    help="specify the partition to run the job in (default cpu-long)")
 
 parser.add_argument("-e",
                     "--condaenv",
                     type=str,
                     help="specify the conda environment to activate",
                     default="base")
+
 parser.add_argument("-n",
                     "--ncpus",
                     type=int,
-                    help="specify the number of CPUs for the lab environment",
+                    help="specify the number of CPUs for the lab environment (default 2)",
                     default=2)
-# options which do not require arguments
 
-parser.add_argument("-py2",
-                    "--python2",
-                    action="store_true",
-                    help="use a Python 2.x environment (Python 3.x is used by default)")
+parser.add_argument("--ngpus",
+                    type=valid_gpu,
+                    help="specify the number of GPUs for the lab environment (default 0)",
+                    default=0)
+
+# options which do not require arguments
 
 parser.add_argument("-d",
                     "--debug",
@@ -304,11 +301,11 @@ if(running_bool):
     raise SystemExit()
 elif(args.time == None):
    print("[jupyter_scheduler INFO] no time on arguments, scheduling notebook for 1 HOUR")
-   ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.ncpus, None, args.condaenv, args.partition)
+   ret_val,host = schedule_jupyter_slurm(args.time, password, False, args.debug, args.ncpus, args.ngpus, None, args.condaenv, args.partition)
 else: 
     print("[jupyter_scheduler INFO] scheduling notebook on partition {} for {}".format(args.partition, args.time))
-    ret_val,host = schedule_jupyter_slurm(args.time, password, args.python2, args.debug, args.ncpus, None, args.condaenv, args.partition)
+    ret_val,host = schedule_jupyter_slurm(args.time, password, False, args.debug, args.ncpus, args.ngpus, None, args.condaenv, args.partition)
     create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm/.jl-slurm_pass",
-                "https://" + host + "." + HEAD_NODE_NAME + ":" + str(ret_val) + "," + password + "\n")
+                "https://" + host + "." + PROXY_HOST + ":" + str(ret_val) + "," + password + "\n")
     time.sleep(3) # let jupyterlab start
     print_pass()
