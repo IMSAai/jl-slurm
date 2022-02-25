@@ -306,10 +306,10 @@ To terminate the existing JupyterLab instance, run `scancel {}`
     )
     raise SystemExit()
 elif(args.time == None):
-   print("[jl-slurm INFO] no time on arguments, scheduling notebook for 1 HOUR with {} CPU cores and {} GPUs".format(args.ncpus, args.ngpus))
+   print("[jl-slurm INFO] no time on arguments, scheduling notebook for 1 HOUR with {} CPU cores and {} GPUs".format(args.ncpus, args.nmps))
    ret_val,host = schedule_jupyter_slurm(args.time, password, False, args.debug, args.ncpus, args.nmps, None, args.condaenv, args.partition)
 else: 
-    print("[jl-slurm INFO] scheduling notebook on partition {} for {} with {} CPU cores and {} GPUs".format(args.partition, args.time, args.ncpus, args.ngpus))
+    print("[jl-slurm INFO] scheduling notebook on partition {} for {} with {} CPU cores and {} GPUs".format(args.partition, args.time, args.ncpus, args.nmps))
     ret_val,host = schedule_jupyter_slurm(args.time, password, False, args.debug, args.ncpus, args.nmps, None, args.condaenv, args.partition)
     create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm/.jl-slurm_pass",
                 "https://" + host + "." + PROXY_HOST + ":" + str(ret_val) + "," + password + "\n")
