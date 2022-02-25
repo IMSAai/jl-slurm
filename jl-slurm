@@ -96,7 +96,7 @@ def create_sbatch_header(running_time, partition, python2, email, debug, condaen
                    \n#SBATCH -e /dev/null"
     header += "\n#SBATCH -p {}".format(partition)
     if gpus != 0:
-        header += "\n#SBATCH --gres=gpu:{}".format(gpus)
+        header += "\n#SBATCH --gres=mps:{}".format(gpus)
     if email != None:
         header += "\n#SBATCH --mail-user=" + email
 
@@ -275,9 +275,9 @@ parser.add_argument("-n",
                     help="specify the number of CPUs for the lab environment (default 2)",
                     default=2)
 
-parser.add_argument("--ngpus",
+parser.add_argument("--nmps",
                     type=valid_gpu,
-                    help="specify the number of GPUs for the lab environment (default 0)",
+                    help="specify the number of GPU shares for the lab environment (default 0)",
                     default=0)
 
 # options which do not require arguments
@@ -307,10 +307,10 @@ To terminate the existing JupyterLab instance, run `scancel {}`
     raise SystemExit()
 elif(args.time == None):
    print("[jl-slurm INFO] no time on arguments, scheduling notebook for 1 HOUR with {} CPU cores and {} GPUs".format(args.ncpus, args.ngpus))
-   ret_val,host = schedule_jupyter_slurm(args.time, password, False, args.debug, args.ncpus, args.ngpus, None, args.condaenv, args.partition)
+   ret_val,host = schedule_jupyter_slurm(args.time, password, False, args.debug, args.ncpus, args.nmps, None, args.condaenv, args.partition)
 else: 
     print("[jl-slurm INFO] scheduling notebook on partition {} for {} with {} CPU cores and {} GPUs".format(args.partition, args.time, args.ncpus, args.ngpus))
-    ret_val,host = schedule_jupyter_slurm(args.time, password, False, args.debug, args.ncpus, args.ngpus, None, args.condaenv, args.partition)
+    ret_val,host = schedule_jupyter_slurm(args.time, password, False, args.debug, args.ncpus, args.nmps, None, args.condaenv, args.partition)
     create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm/.jl-slurm_pass",
                 "https://" + host + "." + PROXY_HOST + ":" + str(ret_val) + "," + password + "\n")
     time.sleep(3) # let jupyterlab start
