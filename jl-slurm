@@ -96,7 +96,7 @@ def create_sbatch_header(running_time, partition, python2, email, debug, condaen
                    \n#SBATCH -e /dev/null"
     header += "\n#SBATCH -p {}".format(partition)
     if gpus != 0:
-        header += "\n#SBATCH --gres=mps:{}".format(gpus)
+        header += "\n#SBATCH --gres=gpu:{}".format(gpus)
     if email != None:
         header += "\n#SBATCH --mail-user=" + email
 
@@ -277,7 +277,7 @@ parser.add_argument("-n",
 
 parser.add_argument("--nmps",
                     type=valid_gpu,
-                    help="specify the number of GPU shares for the lab environment (default 0)",
+                    help="specify the number of GPUs for the lab environment (default 0)",
                     default=0)
 
 # options which do not require arguments
@@ -287,6 +287,15 @@ parser.add_argument("-d",
                     action="store_true",
                     help="keep the scheduler's transcript of the console output (off by default)")
 
+
+path = '~/.jl-slurm/'
+
+# Check whether the specified path exists or not
+isExist = os.path.exists(path)
+
+if not isExist:
+  # Create a new directory because it does not exist 
+  os.makedirs(path)
 
 args = parser.parse_args()
 password = gen_password()
