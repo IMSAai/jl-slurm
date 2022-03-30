@@ -288,7 +288,7 @@ parser.add_argument("-d",
                     help="keep the scheduler's transcript of the console output (off by default)")
 
 
-path = '~/.jl-slurm/'
+path = '{}/.jl-slurm/'.format(os.path.expanduser('~'))
 
 # Check whether the specified path exists or not
 isExist = os.path.exists(path)
