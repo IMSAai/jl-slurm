@@ -5,7 +5,7 @@ import os, errno, subprocess, argparse, random, hashlib, socket, time, string, t
 ### CONSTANTS ###
 MIN_COMPUTE_PORT = 10000
 MAX_COMPUTE_PORT = 10400
-PROXY_HOST = 'jl.epochml.org'
+PROXY_HOST = 'epochml.org'
 
 # function to hash password for jupyter notebook file
 def passwd(passphrase, algorithm='sha1'):
@@ -321,6 +321,6 @@ else:
     print("[jl-slurm INFO] scheduling notebook on partition {} for {} with {} CPU cores and {} GPUs".format(args.partition, args.time, args.ncpus, args.nmps))
     ret_val,host = schedule_jupyter_slurm(args.time, password, False, args.debug, args.ncpus, args.nmps, None, args.condaenv, args.partition)
     create_file("/home/" + pwd.getpwuid(os.getuid())[0] + "/.jl-slurm/.jl-slurm_pass",
-                "https://" + host + "." + PROXY_HOST + ":" + str(ret_val) + "," + password + "\n")
+                "https://" + host + "-" + str(ret_val) + "." + PROXY_HOST + "," + password + "\n")
     time.sleep(3) # let jupyterlab start
     print_pass()
